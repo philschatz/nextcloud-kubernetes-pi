@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluster-ingress
+spec:
+  tls:
+  - hosts:
+    - cloud.lan
+  rules:
+  - host: cloud.lan
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nextcloud-server
+            port: 
+              number: 80

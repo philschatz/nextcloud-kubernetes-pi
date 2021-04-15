@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud-db
+  labels:
+    app: nextcloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      pod-label: nextcloud-db-pod
+  template:
+    metadata:
+      labels:
+        pod-label: nextcloud-db-pod
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:9.6
+        env:
+        - name: POSTGRES_DB
+          value: nextcloud
+        - name: POSTGRES_USER
+          value: nextcloud
+        - name: POSTGRES_PASSWORD
+          value: password
+        # envFrom:
+        # - secretRef:
+        #     name: nextcloud-db-secret
+        volumeMounts:
+        - name: db-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres-data
+      volumes:
+      - name: db-storage
+        persistentVolumeClaim:
+          claimName: nextcloud-shared-storage-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud-db
+  labels:
+    app: nextcloud
+spec:
+  selector:
+    pod-label: nextcloud-db-pod
+  ports:
+  - protocol: TCP
+    port: 5432
