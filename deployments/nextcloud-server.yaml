@@ -33,12 +33,16 @@ spec:
           value: nextcloud-db
 
         - name: NEXTCLOUD_ADMIN_USER
-          value: phil
+          value: admin
         - name: NEXTCLOUD_ADMIN_PASSWORD
-          value: philschatz
+          value: password
         
         - name: NEXTCLOUD_TRUSTED_DOMAINS
           value: cloud.lan
+        
+        # Force https. Otherwise we keep redirecting to http
+        - name: OVERWRITEPROTOCOL
+          value: https
 
 
       volumes:
