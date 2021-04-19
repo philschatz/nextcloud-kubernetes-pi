@@ -1,4 +1,19 @@
-nextcloud-k8s-pi
+**Table of Contents**
+
+1. [Flash Raspberry Pi OS](#flash-raspberry-pi-os)
+    - [Optional: Configure USB Boot](#optional-configure-usb-boot)
+    - [Optional: Fully-automated](#optional-fully-automated)
+1. [Get SSH working on the pi](#get-ssh-working-on-the-pi)
+1. [Final touches on the pi](#final-touches-on-the-pi)
+1. [Install software on laptop](#install-software-on-laptop)
+1. [Install kubernetes (k8s) onto the pi](#install-kubernetes-k8s-onto-the-pi)
+    - [Optional: Install k8s Dashboard](#optional-install-k8s-dashboard)
+1. [Customize fields](#customize-fields)
+1. [Install](#install)
+1. [Uninstall nextcloud completely](#uninstall-nextcloud-completely)
+1. [Reinstall/Update](#reinstallupdate)
+1. [Next Steps!](#next)
+1. [Common Errors](#error-cheatsheets)
 
 
 # Flash Raspberry Pi OS
