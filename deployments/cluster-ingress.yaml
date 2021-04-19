@@ -13,8 +13,11 @@ spec:
   tls:
   - hosts:
     - cloud.lan
+    - kube
+    - kube.local
+    - kube.lan
   rules:
-  - host: cloud.lan
+  - # host: cloud.lan
     http:
       paths:
       - path: /

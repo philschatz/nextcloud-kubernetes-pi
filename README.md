@@ -163,7 +163,7 @@ Customize the following in [nextcloud-server.yaml](./deployments/nextcloud-serve
 
 - NEXTCLOUD_ADMIN_USER=admin
 - NEXTCLOUD_ADMIN_PASSWORD=password
-- NEXTCLOUD_TRUSTED_DOMAINS=cloud.lan
+- NEXTCLOUD_TRUSTED_DOMAINS=cloud.lan kube kube.local kube.lan
 
 
 # Install
@@ -175,7 +175,7 @@ Run [start.sh](./start.sh) to install the ingress, persistence layer, database, 
 If you change any of the usernames or passwords in the yaml file you will need to completely [reset.sh](./reset.sh) because both the database and nextcloud server read the environment variables only when their data directories are empty.
 
 
-Now, visit https://cloud.lan . Sign in with username `admin` and password `password` unless you changed it earlier.
+Now, visit https://kube.local (or https://kube or https://kube.lan). Sign in with username `admin` and password `password` unless you changed it earlier.
 
 Troubleshooting:
 
@@ -183,7 +183,7 @@ Troubleshooting:
 - If you see "Bad Gateway" nextcloud may still be starting up (it took 3 minutes for me).
     - See the logs in the dashboard by clicking the `nextcloud-server-a1b2c3` **Pod** (not Deployment) and then clicking the Logs button
     - The logs will end with `AH00163: Apache/2.4.38 (Debian) PHP/7.4.16 configured -- resuming normal operations` when it is complete
-- If you get a browser error then try running `ping cloud.lan`. If there is no answer then use the pis hostname and update the `cluster-ingress.yaml` and `nextcloud-server.yaml` files.
+- If you get a browser error then try running `ping kube.local`. If there is no answer then use the pis hostname and update the `cluster-ingress.yaml` and `nextcloud-server.yaml` files.
 
 If it does not load up you can view the logs by visiting the k8s dashboard, 
 
