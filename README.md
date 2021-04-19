@@ -3,7 +3,26 @@ nextcloud-k8s-pi
 
 # Flash Raspberry Pi OS
 
+First, purchase a Raspberry Pi 4, an SD card, and optionally a USB key.
+
+It is advisable to use a USB key since nextcloud writes a lot and USB keys tend to last longer.
+
+## Optional: Configure USB Boot
+
+1. Flash the SD card with raspberry PI OS and boot using it.
+    - If you do not have a keyboard, ethernet cable, or monitor you can use the "Fully Automated" instructions below to ssh into it instead.
+1. Log in to the pi and run `sudo raspi-config`
+1. In "Boot Options", select "Boot Order", select "Boot from USB", and restart
+
+
 ## Optional: Fully-automated
+
+These instructions will configure the raspberry pi to:
+
+- sign in to your wifi
+- start up the ssh service
+- add your public ssh key to log in
+- disable password login
 
 <details>
 <summary>Click me to see how to set up the USB stick (or SD card) to be completely automated</summary>
@@ -95,9 +114,9 @@ arkade get kubectl
 arkade get k3sup
 ```
 
-# Install k8s onto the pi
+# Install kubernetes (k8s) onto the pi
 
-Run the following on the laptop. It will ssh into the pi.
+Run the following on your computer. It will ssh into the pi.
 
 ```sh
 export IP="192.168.0.123" # find from ifconfig on RPi
