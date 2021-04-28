@@ -178,6 +178,8 @@ subjects:
   namespace: kubernetes-dashboard
 EOF
 
+# Set again just in case
+export KUBECONFIG=`pwd`/kubeconfig
 
 # Get the token
 kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
@@ -248,6 +250,17 @@ Then, on your Android phone, install the following:
 - [Tasks](https://f-droid.org/packages/org.tasks/)
 - [Notes](https://f-droid.org/en/packages/it.niedermann.owncloud.notes/)
 - Set your [seedvault backup](https://calyxinstitute.org/projects/seedvault-encrypted-backup-for-android) to use nextcloud too!
+
+## Even more!
+
+### Install minio
+
+[min.io](https://min.io) is an AWS S3-compatible object store.
+
+1. Run `arkade install minio`
+
+This should give you instructions to connect to the instance and see. Also, it should give you instructions to use in your app (e.g. nextcloud) if you want.
+
 
 
 

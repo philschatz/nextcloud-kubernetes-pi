@@ -1,1 +1,10 @@
 /kubeconfig
+
+/gitpod/minica-key.pem
+/gitpod/minica.pem
+/gitpod/gitpod.lan/
+/gitpod/https-certificates/
+
+/gitpod/values.custom.yaml
+
+/_*.gitpod.lan/

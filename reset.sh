@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export KUBECONFIG=`pwd`/kubeconfig
+
 kubectl delete -f ./deployments/nextcloud-server.yaml
 kubectl delete -f ./deployments/nextcloud-db.yaml
 
