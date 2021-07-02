@@ -262,6 +262,15 @@ Then, on your Android phone, install the following:
 This should give you instructions to connect to the instance and see. Also, it should give you instructions to use in your app (e.g. nextcloud) if you want.
 
 
+### Connect from another location
+	
+Your phone can connect to `cloud.lan` from another location if you have one other machine:
+
+1. Enable ssh access to your home network. This usually involves setting up your router to talk to a DDNS provider and then enabling port forwarding on your router to a bastion machine inside your network.
+1. Forward the port to a local machine: `sudo ssh -i ~/.ssh/id_rsa -L 0.0.0.0:cloud.lan:443 root@myhomeaddress.com` The 0.0.0.0 ensures other devices can see the local port
+1. Set your hostname to be `cloud`
+1. Ensure the router adds `.lan` to the end of your hostname. Or, maybe you can omit the `.lan` when setting up clients and they'll work wherever.
+
 
 
 # Error cheatsheets:
