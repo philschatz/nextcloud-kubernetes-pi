@@ -10,9 +10,11 @@
     - [Optional: Install k8s Dashboard](#optional-install-k8s-dashboard)
 1. [Customize fields](#customize-fields)
 1. [Install](#install)
+    - [Troubleshooting](#troubleshooting)
 1. [Uninstall nextcloud completely](#uninstall-nextcloud-completely)
 1. [Reinstall/Update](#reinstallupdate)
 1. [Next Steps!](#next)
+    - [Connect from another location](#connect-from-another-location)
 1. [Common Errors](#error-cheatsheets)
 
 
@@ -72,12 +74,12 @@ NEW_HOSTNAME='kube'
 
 
 CURRENT_HOSTNAME=`cat /etc/hostname | tr -d " \t\n\r"`
-echo kube >/etc/hostname
+echo $NEW_HOSTNAME >/etc/hostname
 sed -i "s/127.0.1.1.*$CURRENT_HOSTNAME/127.0.1.1\t$NEW_HOSTNAME/g" /etc/hosts
 FIRSTUSER=`getent passwd 1000 | cut -d: -f1`
 FIRSTUSERHOME=`getent passwd 1000 | cut -d: -f6`
 install -o "$FIRSTUSER" -m 700 -d "$FIRSTUSERHOME/.ssh"
-install -o "$FIRSTUSER" -m 600 <(echo "$AUTHORIZED_SSH_KEYS") "$FIRSTUSERHOME/.ssh/authorized_keys"
+install -o "$FIRSTUSER" -m 600 <$(echo "$AUTHORIZED_SSH_KEYS") "$FIRSTUSERHOME/.ssh/authorized_keys"
 echo 'PasswordAuthentication no' >>/etc/ssh/sshd_config
 systemctl enable ssh
 cat >/etc/wpa_supplicant/wpa_supplicant.conf <<WPAEOF
@@ -199,7 +201,7 @@ Customize the following in [nextcloud-server.yaml](./deployments/nextcloud-serve
 
 - NEXTCLOUD_ADMIN_USER=admin
 - NEXTCLOUD_ADMIN_PASSWORD=password
-- NEXTCLOUD_TRUSTED_DOMAINS=cloud.lan kube kube.local kube.lan
+- NEXTCLOUD_TRUSTED_DOMAINS=cloud cloud.lan kube kube.local kube.lan
 
 
 # Install
@@ -211,9 +213,9 @@ Run [start.sh](./start.sh) to install the ingress, persistence layer, database, 
 If you change any of the usernames or passwords in the yaml file you will need to completely [reset.sh](./reset.sh) because both the database and nextcloud server read the environment variables only when their data directories are empty.
 
 
-Now, visit https://kube.local (or https://kube or https://kube.lan). Sign in with username `admin` and password `password` unless you changed it earlier.
+Now, visit https://kube (or https://kube.local or https://kube.lan). Sign in with username `admin` and password `password` unless you changed it earlier.
 
-Troubleshooting:
+## Troubleshooting
 
 - If you see "Service Unavailable" then kubernetes may still be downloading images. Check the dashboard to see the status
 - If you see "Bad Gateway" nextcloud may still be starting up (it took 3 minutes for me).
@@ -245,7 +247,7 @@ Install the following Nextcloud Apps by clicking your login on the top-right and
 Then, on your Android phone, install the following:
 
 - [NextCloud](https://f-droid.org/en/packages/com.nextcloud.client/)
-- [DAVx5](https://f-droid.org/en/packages/at.bitfire.davdroid/)
+- [DAVx5](https://f-droid.org/en/packages/at.bitfire.davdroid/) and [configuration instructions](https://www.davx5.com/tested-with/nextcloud)
 - [Etar Calendar](https://f-droid.org/en/packages/ws.xsoh.etar/)
 - [Tasks](https://f-droid.org/packages/org.tasks/)
 - [Notes](https://f-droid.org/en/packages/it.niedermann.owncloud.notes/)
@@ -264,15 +266,27 @@ This should give you instructions to connect to the instance and see. Also, it s
 
 ### Connect from another location
 	
-Your phone can connect to `cloud.lan` from another location if you have one other machine:
+Your phone can connect to `https://cloud` from another location if you have one other machine:
 
 1. Enable ssh access to your home network. This usually involves setting up your router to talk to a DDNS provider and then enabling port forwarding on your router to a bastion machine inside your network.
-1. Forward the port to a local machine: `sudo ssh -i ~/.ssh/id_rsa -L 0.0.0.0:cloud.lan:443 root@myhomeaddress.com` The 0.0.0.0 ensures other devices can see the local port
+1. Forward the port to a local machine: `sudo ssh -i ~/.ssh/id_rsa -L 0.0.0.0:cloud:443 username@myhomeaddress.com` The 0.0.0.0 ensures other devices can see the local port and the `sudo` allows you to listen to ports below 1024
 1. Set your hostname to be `cloud`
-1. Ensure the router adds `.lan` to the end of your hostname. Or, maybe you can omit the `.lan` when setting up clients and they'll work wherever.
 
 
 
 # Error cheatsheets:
 
 `error: yaml: line 30: mapping values are not allowed in this context` : Set KUBECONFIG= to the absolute path to the `kubeconfig` files (generated during the `k3sup install ...` step)
+
+
+# File redundancy
+
+See https://old.reddit.com/r/selfhosted/comments/n4pkwk/finally_added_prometheus_and_grafana_on_my_humble/gwxb3se/
+
+## Rancher Longhorn
+
+```sh
+helm install --create-namespace vault --atomic banzaicloud-stable/vault
+helm install --create-namespace vault --namespace vault --atomic banzaicloud-stable/vault-operator
+helm install --create-namespace vault-webhook --namespace vault --atomic banzaicloud-stable/vault-secrets-webhook
+```

@@ -12,6 +12,8 @@ metadata:
 spec:
   tls:
   - hosts:
+    - cloud
+    - cloud.local
     - cloud.lan
     - kube
     - kube.local
