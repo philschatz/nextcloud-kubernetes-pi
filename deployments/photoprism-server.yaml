@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: photoprism-stateful
+  namespace: photoprism
+spec:
+  selector:
+    matchLabels:
+      app: photoprism
+  serviceName: photoprism-service
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: photoprism
+    spec:
+      containers:
+      - name: photoprism-container
+        image: photoprism/photoprism:latest
+        env:
+        - name: PHOTOPRISM_DEBUG
+          value: "true"
+        - name: PHOTOPRISM_CACHE_PATH
+          value: /assets/cache
+        - name: PHOTOPRISM_IMPORT_PATH
+          value: /assets/photos/import
+        - name: PHOTOPRISM_EXPORT_PATH
+          value: /assets/photos/export
+        - name: PHOTOPRISM_ORIGINALS_PATH
+          value: /assets/photos/originals
+        - name: PHOTOPRISM_STORAGE_PATH
+          value: /assets/database
+        # - name: PHOTOPRISM_DATABASE_DRIVER
+        #   value: mysql
+        - name: PHOTOPRISM_HTTP_HOST
+          value: 0.0.0.0
+        - name: PHOTOPRISM_HTTP_PORT
+          value: "2342"
+        - name: PHOTOPRISM_AUTO_IMPORT
+          value: '60' # seconds. Default is 15min. https://docs.photoprism.org/getting-started/config-options/
+        - name: PHOTOPRISM_FACE_SIZE
+          value: '30' # pixels: https://github.com/photoprism/photoprism/blame/9db8b804f39a35003761abc2f13ec8ffa3375297/internal/config/flags.go#L441
+        - name: PHOTOPRISM_FACE_SCORE
+          value: '5' # 0-10 apparently. 9.0 is default. https://github.com/photoprism/photoprism/commit/65b779823df45666f46ce3a46bda664d9c91a5ff
+        - name: PHOTOPRISM_SITE_URL
+          value: https://photos
+        - name: PHOTOPRISM_ADMIN_PASSWORD
+          value: password
+        # Load database DSN & admin password from secret
+        # envFrom:
+        # - secretRef:
+        #     name: photoprism-secrets
+        #     optional: false
+        ports:
+        - containerPort: 2342
+          name: http
+        volumeMounts:
+        - mountPath: /assets/photos/originals
+          name: originals
+          subPath: media/photos
+        - mountPath: /assets/cache
+          name: photoprism
+          subPath: cache
+        - mountPath: /assets/photos/import
+          name: photoprism
+          subPath: import
+        - mountPath: /assets/photos/export
+          name: photoprism
+          subPath: export
+        - mountPath: /assets/database
+          name: photoprism
+          subPath: database
+        readinessProbe:
+          periodSeconds: 10
+          initialDelaySeconds: 10
+          httpGet:
+            path: /api/v1/status
+            port: http
+      volumes:
+      - name: originals
+        persistentVolumeClaim:
+          claimName: photoprism-originals-shared-storage-claim
+        # nfs:
+        #   path: /share
+        #   readOnly: true
+        #   server: my.nas.host
+      - name: photoprism
+        persistentVolumeClaim:
+          claimName: photoprism-shared-storage-claim
+        # nfs:
+        #   path: /photoprism
+        #   server: my.nas.host
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: photoprism-service
+  namespace: photoprism
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  selector:
+    app: photoprism
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: photoprism-ingress
+  namespace: photoprism
+  annotations:
+    # For nginx ingress controller:
+    kubernetes.io/ingress.class: traefik
+    # Default is very low so most photo uploads will fail
+    # nginx.ingress.kubernetes.io/proxy-body-size: "512M"
+    traefik.http.middlewares.limit.buffering.maxRequestBodyBytes: '200000000' # 200mb
+    # If using cert-manager:
+    # certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/tls-acme: "true"
+    # # Redirect to https
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/redirect-permanent: 'true'
+
+spec:
+  tls:
+  - hosts:
+    - photos
+    # secretName: photoprism-cert
+  rules:
+  - host: photos
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: photoprism-service
+            port: 
+              name: http

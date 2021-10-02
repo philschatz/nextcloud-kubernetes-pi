@@ -5,8 +5,9 @@ metadata:
   annotations:
     # https://docs.nextcloud.com/server/latest/admin_manual/configuration_server/reverse_proxy_configuration.html#traefik-1
     # https://doc.traefik.io/traefik/v1.7/configuration/backends/kubernetes/
-    traefik.ingress.kubernetes.io/redirect-entry-point: https
-    traefik.ingress.kubernetes.io/redirect-permanent: 'true'
+    # Do not redirect cloud so that photoprism can WEBDav to it and download images (self-signed TLS certificate)
+    # traefik.ingress.kubernetes.io/redirect-entry-point: https
+    # traefik.ingress.kubernetes.io/redirect-permanent: 'true'
     traefik.ingress.kubernetes.io/redirect-regex: https://(.*)/.well-known/(card|cal)dav
     traefik.ingress.kubernetes.io/redirect-replacement: https://$1/remote.php/dav/
 spec:
@@ -19,7 +20,7 @@ spec:
     - kube.local
     - kube.lan
   rules:
-  - # host: cloud.lan
+  - host: cloud
     http:
       paths:
       - path: /
