@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: photoprism-container
-        image: photoprism/photoprism:latest
+        image: photoprism/photoprism:20211203 # Last one that works on amd, arm64, and arm/v7 (this is what my kube runs)
         env:
         - name: PHOTOPRISM_DEBUG
           value: "true"

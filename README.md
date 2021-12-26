@@ -149,6 +149,14 @@ kubectl get node -o wide
 
 Put `KUBECONFIG=` into `~/bash_profile` or remember to keep setting it when you open a new terminal.
 
+## Instal kubernetes on other nodes
+
+```sh
+k3sup join --server-ip $IP --server-user pi
+kubectl get node -o wide
+sudo systemctl enable k3s-agent
+```
+
 # Optional: Install k8s Dashboard
 
 Run the following to install the dashboard, add an admin user, and get a token to sign into the dashboard:
@@ -235,6 +243,29 @@ If it does not load up you can view the logs by visiting the k8s dashboard,
 
 Just run [start.sh](./start.sh) and kubernetes will apply only the changes you made.
 
+
+# Backups
+
+Run the following on the raspberry pi (kube):
+
+```
+#!/bin/bash
+set -x -e
+
+nextcloud_root_dir='/var/lib/rancher/k3s/storage/pvc-...SOME-UUID..._default_nextcloud-shared-storage-claim'
+# sudo rsync -Aavx "${root_dir}" ./nextcloud-root-dirbkp_`date +"%Y%m%d"`/
+#
+
+time sudo tar -cvzf ./nextcloud-dirbkp_`date +"%Y%m%d"`-postgres.tar.gz $nextcloud_root_dir/postgres-data
+time tar      -cvzf ./nextcloud-dirbkp_`date +"%Y%m%d"`-server.tar.gz   $nextcloud_root_dir/server-data
+
+
+photoprism_originals_dir=/var/lib/rancher/k3s/storage/pvc-...SOME-UUID..._photoprism_photoprism-originals-shared-storage-claim/
+photoprism_dir=/var/lib/rancher/k3s/storage/pvc-...SOME-UUID..._photoprism_photoprism-shared-storage-claim/
+
+time tar -cvzf ./photoprism-dirbkp_`date +"%Y%m%d"`-originals.tar.gz   $photoprism_originals_dir/
+time tar -cvzf ./photoprism-dirbkp_`date +"%Y%m%d"`-data.tar.gz        $photoprism_dir/
+```
 
 # Next!
 
