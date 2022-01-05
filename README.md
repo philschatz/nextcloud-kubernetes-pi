@@ -162,31 +162,9 @@ sudo systemctl enable k3s-agent
 Run the following to install the dashboard, add an admin user, and get a token to sign into the dashboard:
 
 ```sh
-arkade install kubernetes-dashboard
+kubectl apply -f ./deployments/kubernetes-dashboard.yaml
+kubectl apply -f ./deployments/kubernetes-dashboard-extras.yaml
 
-# Install an admin user
-cat <<EOF | kubectl apply -f -                                                                                                    
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: admin-user
-  namespace: kubernetes-dashboard
-EOF
-
-cat <<EOF | kubectl apply -f -                                                                                                    
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-user
-roleRef:                         
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: admin-user
-  namespace: kubernetes-dashboard
-EOF
 
 # Set again just in case
 export KUBECONFIG=`pwd`/kubeconfig
@@ -198,7 +176,7 @@ kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get
 kubectl proxy
 ```
 
-Now visit here http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/overview?namespace=_all and select the **Token** option.
+Now visit here http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/workloads?namespace=_all and select the **Token** option.
 
 Also, select "All Namespaces" in the left dropdown to see everything that is running.
 
@@ -310,7 +288,7 @@ Your phone can connect to `https://cloud` from another location if you have one 
 `error: yaml: line 30: mapping values are not allowed in this context` : Set KUBECONFIG= to the absolute path to the `kubeconfig` files (generated during the `k3sup install ...` step)
 
 
-# File redundancy
+## File redundancy
 
 See https://old.reddit.com/r/selfhosted/comments/n4pkwk/finally_added_prometheus_and_grafana_on_my_humble/gwxb3se/
 
@@ -320,4 +298,64 @@ See https://old.reddit.com/r/selfhosted/comments/n4pkwk/finally_added_prometheus
 helm install --create-namespace vault --atomic banzaicloud-stable/vault
 helm install --create-namespace vault --namespace vault --atomic banzaicloud-stable/vault-operator
 helm install --create-namespace vault-webhook --namespace vault --atomic banzaicloud-stable/vault-secrets-webhook
+```
+
+## 32-bit vs 64bit
+
+photoprism no longer builds 32-bit and 64-bit images under the same name. That means that 64-bit images can be referenced by immutable tags while the 32bit image needs to use the [armv7 tag](https://hub.docker.com/r/photoprism/photoprism/tags)
+
+```
+photoprism/photoprism:20211203  # This is the last version that works with 32bit and 64bit raspberry pi
+```
+
+Also, to switch your raspberry pi from 32bit to 64 ([source](https://www.sindastra.de/p/1345/switch-your-raspberry-pi-to-64-bit-kernel-raspbian)):
+
+```
+sudo nano /boot/config.txt
+
+# Add the following line ot the bottom without the `#`
+arm_64bit=1
+```
+
+## Debugging Nextcloud 500 errors
+
+Run `php occ log:watch` as the `www-data` user. Open a shell to nextcloud-server instance and run:
+
+```
+su www-data -s /bin/bash
+php occ log:watch    # <-- shows stack traces
+```
+
+## Backup script on the pi
+
+```sh
+#!/bin/bash
+set -x -e
+
+today=$(date -u +%Y-%m-%d)
+
+nextcloud_root_dir='/var/lib/rancher/k3s/storage/pvc-4e5cef0f-2540-4b6f-965b-b66bd7c403fb_nextcloud_nextcloud-shared-storage-claim'
+photoprism_originals_dir=/var/lib/rancher/k3s/storage/pvc-0a653ef7-d558-44fa-a506-ed5249a8fa5e_photoprism_photoprism-originals-shared-storage-claim/
+photoprism_dir=/var/lib/rancher/k3s/storage/pvc-cf600b70-85c8-4979-9470-dbf48a3f6d32_photoprism_photoprism-shared-storage-claim/
+
+echo "Backing up rancher k3s"
+time sudo tar --create --checkpoint=1000 --file=./${today}_k3s.tar.gz --exclude='/var/lib/rancher/k3s/agent/containerd' /var/lib/rancher/k3s/agent /var/lib/rancher/k3s/server
+
+exit 111
+
+
+#time tar -cvzf ./${today}_photoprism-originals.tar.gz $photoprism_originals_dir/
+#time tar -cvzf ./${today}_photoprism-data.tar.gz      $photoprism_dir/
+
+sudo rsync --acls --archive --one-file-system --progress "$nextcloud_root_dir" ./rsync-nextcloud-root/
+# Should ignore nextcloud-root-dirbkp-rsync/pvc-bd0ea23f-a780-442c-a570-c2e0a2ca3c0e_default_nextcloud-shared-storage-claim/server-data/data/phil/files_trashbin
+
+# Create a postgres dump
+sudo kubectl exec deployment/nextcloud-db --namespace nextcloud -- pg_dump --dbname=nextcloud --username=nextcloud -Cc | xz > ./${today}_nextcloud.sql.xz
+
+time sudo tar --create --checkpoint=1000 --file=./${today}_nextcloud-postgres-data.tar.gz $nextcloud_root_dir/postgres-data
+time sudo tar --create --checkpoint=1000 --file=./${today}_nextcloud-server-data.tar.gz   $nextcloud_root_dir/server-data
+
+sudo chown pi ./${today}_nextcloud-postgres-data.tar.gz
+sudo chown pi ./${today}_nextcloud-server-data.tar.gz
 ```

@@ -1,7 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nextcloud
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: cluster-ingress
+  namespace: nextcloud
   annotations:
     # https://docs.nextcloud.com/server/latest/admin_manual/configuration_server/reverse_proxy_configuration.html#traefik-1
     # https://doc.traefik.io/traefik/v1.7/configuration/backends/kubernetes/
