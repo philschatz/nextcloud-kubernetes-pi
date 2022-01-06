@@ -1,0 +1,30 @@
+# TODO: Add a homepage. Until then, redirect '/' to '/nextcloud' for now
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: homepage-ingress
+  namespace: nextcloud
+spec:
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/`)
+    middlewares:
+    - name: redirect-to-nextcloud
+      namespace: nextcloud
+    # Traefik requires us to put a service here but it can be anything since it never runs because we always redirect
+    services:
+    - kind: Service
+      name: nextcloud-server
+      namespace: nextcloud
+      port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  creationTimestamp: null
+  name: redirect-to-nextcloud
+  namespace: nextcloud
+spec:
+  redirectRegex:
+    regex: https://([a-z.]+)(/?)(.*)
+    replacement: https://$1/nextcloud/$3

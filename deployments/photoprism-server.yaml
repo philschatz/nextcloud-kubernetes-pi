@@ -18,8 +18,10 @@ spec:
       - name: photoprism-container
         image: photoprism/photoprism:20211203 # Last one that works on amd, arm64, and arm/v7 (this is what my kube runs)
         env:
-        - name: PHOTOPRISM_DEBUG
-          value: "true"
+        # - name: PHOTOPRISM_DEBUG
+        #   value: "true"
+        - name: PHOTOPRISM_LOG_LEVEL
+          value: info
         - name: PHOTOPRISM_CACHE_PATH
           value: /assets/cache
         - name: PHOTOPRISM_IMPORT_PATH
@@ -43,9 +45,11 @@ spec:
         - name: PHOTOPRISM_FACE_SCORE
           value: '5' # 0-10 apparently. 9.0 is default. https://github.com/photoprism/photoprism/commit/65b779823df45666f46ce3a46bda664d9c91a5ff
         - name: PHOTOPRISM_SITE_URL
-          value: https://photos
+          value: https://kube/photos
         - name: PHOTOPRISM_ADMIN_PASSWORD
           value: password
+        - name: PHOTOPRISM_WORKERS
+          value: '1'
         # Load database DSN & admin password from secret
         # envFrom:
         # - secretRef:
@@ -127,13 +131,13 @@ metadata:
 spec:
   tls:
   - hosts:
-    - photos
+    - kube
     # secretName: photoprism-cert
   rules:
-  - host: photos
+  - host: kube
     http:
       paths:
-      - path: /
+      - path: /photos
         pathType: Prefix
         backend:
           service:

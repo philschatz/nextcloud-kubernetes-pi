@@ -1,0 +1,52 @@
+# Converted using:
+# - https://github.com/traefik/traefik-migration-tool/blob/f5cc3552e1dd61cf68c380f2b5355f9afbc7f282/ingress/ingress.go#L227-L304
+# - The deleted cluster-ingress.yaml with 2 extra annotations added:
+#       kubernetes.io/ingress.class: traefik
+#       traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
+# - The deleted cluster-ingress.yaml also had the path changed from '/' to '/nextcloud' for the migration magic to add a middleware
+#
+# Note: needed to build the traefik-migration locally (instead of using the docker instructions) because docker image is out of date
+# Source: https://doc.traefik.io/traefik/migration/v1-to-v2/
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  creationTimestamp: null
+  name: cluster-ingress
+  namespace: nextcloud
+spec:
+  routes:
+  - kind: Rule
+    # TODO: Could try using HostRegexp but would need to update the NEXTCLOUD_TRUSTED_DOMAINS. https://doc.traefik.io/traefik/routing/routers/
+    match: Host(`kube`, `kube.local`, `kube.lan`) && PathPrefix(`/nextcloud`)
+    middlewares:
+    - name: kube-nextcloud
+      namespace: nextcloud
+    - name: nextcloud-webdav-redirects
+      namespace: nextcloud
+    services:
+    - kind: Service
+      name: nextcloud-server
+      namespace: nextcloud
+      port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  creationTimestamp: null
+  name: kube-nextcloud
+  namespace: nextcloud
+spec:
+  stripPrefix:
+    prefixes:
+    - /nextcloud
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  creationTimestamp: null
+  name: nextcloud-webdav-redirects
+  namespace: nextcloud
+spec:
+  redirectRegex:
+    regex: https://(.*)/.well-known/(card|cal)dav
+    replacement: https://$1/remote.php/dav/

@@ -1,4 +1,4 @@
-/kubeconfig
+/kubeconfig*
 
 /gitpod/minica-key.pem
 /gitpod/minica.pem

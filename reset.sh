@@ -14,7 +14,9 @@ then
     kubectl delete -f ./deployments/photoprism-shared-pvc.yaml
 fi
 
-kubectl delete -f ./deployments/cluster-ingress.yaml
+kubectl delete -f ./deployments/homepage-ingress.yaml
+kubectl delete -f ./deployments/nextcloud-ingress.yaml
+kubectl delete -f ./deployments/nextcloud-namespace.yaml
 
 read -p "Would you like to delete the kubernetes-dashboard <y/N> " prompt
 if [[ $prompt =~ [yY](es)* ]]
