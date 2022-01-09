@@ -1,4 +1,8 @@
 /kubeconfig*
+/my-tls.crt
+/my-tls.key
+/install.env
+/backups/
 
 /gitpod/minica-key.pem
 /gitpod/minica.pem

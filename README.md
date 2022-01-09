@@ -1,251 +1,79 @@
 **Table of Contents**
 
 1. [Flash Raspberry Pi OS](#flash-raspberry-pi-os)
-    - [Optional: Configure USB Boot](#optional-configure-usb-boot)
-    - [Optional: Fully-automated](#optional-fully-automated)
-1. [Get SSH working on the pi](#get-ssh-working-on-the-pi)
-1. [Final touches on the pi](#final-touches-on-the-pi)
-1. [Install software on laptop](#install-software-on-laptop)
-1. [Install kubernetes (k8s) onto the pi](#install-kubernetes-k8s-onto-the-pi)
-    - [Optional: Install k8s Dashboard](#optional-install-k8s-dashboard)
-1. [Customize fields](#customize-fields)
+1. [Customize Fields](#customize-fields)
 1. [Install](#install)
-    - [Troubleshooting](#troubleshooting)
-1. [Uninstall nextcloud completely](#uninstall-nextcloud-completely)
-1. [Reinstall/Update](#reinstallupdate)
-1. [Next Steps!](#next)
-    - [Connect from another location](#connect-from-another-location)
-1. [Common Errors](#error-cheatsheets)
+    - [Backups](#backups)
+1. [Next Steps](#next-steps)
+1. [Troubleshooting](#troubleshooting)
 
 
 # Flash Raspberry Pi OS
 
-First, purchase a Raspberry Pi 4, an SD card, and optionally a USB key.
+First, purchase the following:
 
-It is advisable to use a USB key since nextcloud writes a lot and USB keys tend to last longer.
+- a Raspberry Pi 4
+- an SD card (8+ Gb but 16+ is preferable)
+- optionally at least one hard drive or USB key to store all that data
 
-## Optional: Configure USB Boot
+**Note:** The extra storage is strongly encouraged because SD cards are not designed to be constantly written to and degrade quickly.
 
-1. Flash the SD card with raspberry PI OS and boot using it.
-    - If you do not have a keyboard, ethernet cable, or monitor you can use the "Fully Automated" instructions below to ssh into it instead.
-1. Log in to the pi and run `sudo raspi-config`
-1. In "Boot Options", select "Boot Order", select "Boot from USB", and restart
+Flash the SD card with [Raspberry PI OS Lite](https://www.raspberrypi.com/software/)
 
-
-## Optional: Fully-automated
-
-These instructions will configure the raspberry pi to:
-
-- sign in to your wifi
-- start up the ssh service
-- add your public ssh key to log in
-- disable password login
-
-<details>
-<summary>Click me to see how to set up the USB stick (or SD card) to be completely automated</summary>
-
-### Replace `/boot/cmdline.txt`
-
-```
-console=serial0,115200 console=tty1 root=PARTUUID=83c4223d-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet init=/usr/lib/raspi-config/init_resize.sh systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory
-```
-
-### Create `/boot/firstrun.sh`
-
-```sh
-#!/bin/bash
-
-set +e
-
-# --------------------------------------------------
-# EDIT THE FOLLOWING:
-# - AUTHORIZED_SSH_KEYS
-# - WIFI_NAME
-# - WIFI_PASSWORD
-# - WIFI_COUNTRY_CODE
-# - NEW_HOSTNAME
-# --------------------------------------------------
-
-AUTHORIZED_SSH_KEYS='ssh-rsa AAAAAABBBBBBCCCCC....'
-WIFI_NAME='My Wifi Name'
-WIFI_PASSWORD='mysecretpassword'
-WIFI_COUNTRY_CODE='us'
-NEW_HOSTNAME='kube'
+> The Lite version is recommended because we will not need a user interface, screen, a web browsers, etc.
 
 
-CURRENT_HOSTNAME=`cat /etc/hostname | tr -d " \t\n\r"`
-echo $NEW_HOSTNAME >/etc/hostname
-sed -i "s/127.0.1.1.*$CURRENT_HOSTNAME/127.0.1.1\t$NEW_HOSTNAME/g" /etc/hosts
-FIRSTUSER=`getent passwd 1000 | cut -d: -f1`
-FIRSTUSERHOME=`getent passwd 1000 | cut -d: -f6`
-install -o "$FIRSTUSER" -m 700 -d "$FIRSTUSERHOME/.ssh"
-install -o "$FIRSTUSER" -m 600 <$(echo "$AUTHORIZED_SSH_KEYS") "$FIRSTUSERHOME/.ssh/authorized_keys"
-echo 'PasswordAuthentication no' >>/etc/ssh/sshd_config
-systemctl enable ssh
-cat >/etc/wpa_supplicant/wpa_supplicant.conf <<WPAEOF
-country=${WIFI_COUNTRY_CODE}
-ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-ap_scan=1
+## Customize Fields
 
-update_config=1
-network={
-	ssid="${WIFI_NAME}"
-	psk="${WIFI_PASSWORD}"
-}
+The services can optionally be customized by editing the yaml files in [./deployments](./deployments).
 
-WPAEOF
-chmod 600 /etc/wpa_supplicant/wpa_supplicant.conf
-rfkill unblock wifi
-for filename in /var/lib/systemd/rfkill/*:wlan ; do
-  echo 0 > $filename
-done
-rm -f /boot/firstrun.sh
-sed -i 's| systemd.run.*||g' /boot/cmdline.txt
-exit 0
-```
-
-</details>
-
-
-# Get SSH working on the pi
-
-We need to get to the point that we can run this without being prompted for a password:
-
-```sh
-export IP="192.168.0.123" # find from ifconfig on RPi
-ssh pi@$IP
-```
-
-# Final touches on the pi
-
-Also, use `sudo raspi-config` to set the GPU memory to 16 (in the "Performance" section)
-
-Also, `sudo nano /bood/cmdfile.txt` and add `cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory` to the end of the first line (**Not on a new line!**)
-
-
-# Install software on laptop
-
-```sh
-curl -sSL https://dl.get-arkade.dev | sudo sh
-arkade get kubectl
-arkade get k3sup
-```
-
-# Install kubernetes (k8s) onto the pi
-
-Run the following on your computer. It will ssh into the pi.
-
-```sh
-export IP="192.168.0.123" # find from ifconfig on RPi
-k3sup install --ip $IP --user pi
-```
-
-Verify the node is up:
-
-```sh
-export KUBECONFIG=`pwd`/kubeconfig
-kubectl get node -o wide
-```
-
-Put `KUBECONFIG=` into `~/bash_profile` or remember to keep setting it when you open a new terminal.
-
-## Instal kubernetes on other nodes
-
-```sh
-k3sup join --server-ip $IP --server-user pi
-kubectl get node -o wide
-sudo systemctl enable k3s-agent
-```
-
-# Optional: Install k8s Dashboard
-
-Run the following to install the dashboard, add an admin user, and get a token to sign into the dashboard:
-
-```sh
-kubectl apply -f ./deployments/kubernetes-dashboard.yaml
-kubectl apply -f ./deployments/kubernetes-dashboard-extras.yaml
-
-
-# Set again just in case
-export KUBECONFIG=`pwd`/kubeconfig
-
-# Get the token
-kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
-
-# Start the proxy
-kubectl proxy
-```
-
-Now visit here http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/workloads?namespace=_all and select the **Token** option.
-
-Also, select "All Namespaces" in the left dropdown to see everything that is running.
-
-
-# Customize fields
-
-Customize the following in [nextcloud-server.yaml](./deployments/nextcloud-server.yaml):
-
-- NEXTCLOUD_ADMIN_USER=admin
-- NEXTCLOUD_ADMIN_PASSWORD=password
-- NEXTCLOUD_TRUSTED_DOMAINS=cloud cloud.lan kube kube.local kube.lan
+**Note:** If you change any of the usernames or passwords in the yaml files you will need to completely [reset.sh](./reset.sh) because both the database and nextcloud server read the environment variables only when their data directories are empty.
 
 
 # Install
 
-**Reminder:** Put `KUBECONFIG=` into `~/bash_profile` or remember to keep setting it when you open a new terminal.
+The installation is mostly automated using the [install.sh](./install.sh) script. So far it has been tested on Ubuntu but Pull Requests are welcome!
 
-Run [start.sh](./start.sh) to install the ingress, persistence layer, database, and server.
+In general the steps are:
 
-If you change any of the usernames or passwords in the yaml file you will need to completely [reset.sh](./reset.sh) because both the database and nextcloud server read the environment variables only when their data directories are empty.
+1. Configure SD card (optionally inject WiFi and ssh keys)
+1. ssh into machine and install OS dependencies
+1. Install packages that reduce the churn on the SD card
+1. Install local helpers (k3sup)
+1. Install k3s
+1. Verify k3s is up
+1. Mount storage drive (so SD card lasts longer)
+1. Deploy apps to k3s
+1. Start proxy tunnel for Cluster dashboard
+1. Perform backup
+1. Uninstall apps
 
-
-Now, visit https://kube (or https://kube.local or https://kube.lan). Sign in with username `admin` and password `password` unless you changed it earlier.
-
-## Troubleshooting
-
-- If you see "Service Unavailable" then kubernetes may still be downloading images. Check the dashboard to see the status
-- If you see "Bad Gateway" nextcloud may still be starting up (it took 3 minutes for me).
-    - See the logs in the dashboard by clicking the `nextcloud-server-a1b2c3` **Pod** (not Deployment) and then clicking the Logs button
-    - The logs will end with `AH00163: Apache/2.4.38 (Debian) PHP/7.4.16 configured -- resuming normal operations` when it is complete
-- If you get a browser error then try running `ping kube.local`. If there is no answer then use the pis hostname and update the `nextcloud-ingress.yaml` and `nextcloud-server.yaml` files.
-
-If it does not load up you can view the logs by visiting the k8s dashboard, 
-
-
-# Uninstall nextcloud completely
-
-**Danger!!!** Run [reset.sh](./reset.sh) to delete all the nodes and persisted files.
+Once the apps are deployed, visit https://kube (or https://kube.local or https://kube.lan). Sign in with username `admin` and password `password` unless you changed it earlier.
 
 
-# Reinstall/Update
+## Backups
 
-Just run [start.sh](./start.sh) and kubernetes will apply only the changes you made.
+You can SCP the [backup.sh](./backup.sh) file to the server and run it to perform a backup.
+
+It backs up the following:
+
+- the Postgres database for nextcloud
+- all volumes in the cluster
+- the k8s configuration (including secrets and keys)
+
+### Backing up the SD card
+
+To optionally back up the SD card perform the following:
+
+1. turn off the pi
+1. remove the SD card and insert it into a laptop
+1. use the "Disk Utility" to resize the main partition down to around 4Gb. If you skip this then the image will be however large your SD card is
+1. run `sudo dd status=progress if=/dev/sdX | gzip > kube-backup.img.gz` where sdX is your SD card. Sometimes it is `/dev/mmcblk0`
+1. run `sudo dd status=progress if=/dev/sdX bs=1M count=5120 | gzip > kube-backup.img.gz` to limit the image size to 5GB (assuming you shrunk it in the Disk Utility) https://stackoverflow.com/a/26909977
+1. resize the partition back to the full size using the "Disk Utility"
 
 
-# Backups
-
-Run the following on the raspberry pi (kube):
-
-```
-#!/bin/bash
-set -x -e
-
-nextcloud_root_dir='/var/lib/rancher/k3s/storage/pvc-...SOME-UUID..._default_nextcloud-shared-storage-claim'
-# sudo rsync -Aavx "${root_dir}" ./nextcloud-root-dirbkp_`date +"%Y%m%d"`/
-#
-
-time sudo tar -cvzf ./nextcloud-dirbkp_`date +"%Y%m%d"`-postgres.tar.gz $nextcloud_root_dir/postgres-data
-time tar      -cvzf ./nextcloud-dirbkp_`date +"%Y%m%d"`-server.tar.gz   $nextcloud_root_dir/server-data
-
-
-photoprism_originals_dir=/var/lib/rancher/k3s/storage/pvc-...SOME-UUID..._photoprism_photoprism-originals-shared-storage-claim/
-photoprism_dir=/var/lib/rancher/k3s/storage/pvc-...SOME-UUID..._photoprism_photoprism-shared-storage-claim/
-
-time tar -cvzf ./photoprism-dirbkp_`date +"%Y%m%d"`-originals.tar.gz   $photoprism_originals_dir/
-time tar -cvzf ./photoprism-dirbkp_`date +"%Y%m%d"`-data.tar.gz        $photoprism_dir/
-```
-
-# Next!
+# Next Steps
 
 Install the following Nextcloud Apps by clicking your login on the top-right and then clicking "Apps":
 
@@ -262,43 +90,51 @@ Then, on your Android phone, install the following:
 - [Notes](https://f-droid.org/en/packages/it.niedermann.owncloud.notes/)
 - Set your [seedvault backup](https://calyxinstitute.org/projects/seedvault-encrypted-backup-for-android) to use nextcloud too!
 
+
 ## Even more!
 
-### Install minio
+- git hosting server [gitea](https://gitea.com/gitea/helm-chart)
+- AWS S3-compatible object store [min.io](https://min.io): `arkade install minio`
 
-[min.io](https://min.io) is an AWS S3-compatible object store.
 
-1. Run `arkade install minio`
+### Install OpenMediaVault for NFS mounts
 
-This should give you instructions to connect to the instance and see. Also, it should give you instructions to use in your app (e.g. nextcloud) if you want.
+([steps](https://singleboardbytes.com/891/set-up-openmediavault-raspberry-pi.htm))
+
+```bash
+curl -SLfs https://github.com/OpenMediaVault-Plugin-Developers/installScript/raw/master/install | sudo bash -x
+# Set the port to something other than 80: https://openmediavault.readthedocs.io/en/5.x/various/advset.html
+omv-firstaid
+sudo reboot # important for the nfs service to start up
+```
 
 
 ### Connect from another location
 	
-Your phone can connect to `https://cloud` from another location if you have one other machine:
+Your phone can connect to `https://kube` from another location if you have one other machine:
 
 1. Enable ssh access to your home network. This usually involves setting up your router to talk to a DDNS provider and then enabling port forwarding on your router to a bastion machine inside your network.
-1. Forward the port to a local machine: `sudo ssh -i ~/.ssh/id_rsa -L 0.0.0.0:cloud:443 username@myhomeaddress.com` The 0.0.0.0 ensures other devices can see the local port and the `sudo` allows you to listen to ports below 1024
-1. Set your hostname to be `cloud`
+1. Forward the port to a local machine: `sudo ssh -i ~/.ssh/id_rsa -L 0.0.0.0:kube:443 username@myhomeaddress.com` The 0.0.0.0 ensures other devices can see the local port and the `sudo` allows you to listen to ports below 1024
+1. Set the hostname of your laptop to be `kube`
 
 
 
-# Error cheatsheets:
+# Troubleshooting
 
-`error: yaml: line 30: mapping values are not allowed in this context` : Set KUBECONFIG= to the absolute path to the `kubeconfig` files (generated during the `k3sup install ...` step)
+- `error: yaml: line 30: mapping values are not allowed in this context` : Set KUBECONFIG= to the absolute path to the `kubeconfig` files (generated during the `k3sup install ...` step)
+- If you see "Service Unavailable" then kubernetes may still be downloading images. Check the dashboard to see the status
+- If you see "Bad Gateway" nextcloud may still be starting up (it took 3 minutes for me).
+    - See the logs in the dashboard by clicking the `nextcloud-server-a1b2c3` **Pod** (not Deployment) and then clicking the Logs button
+    - The logs will end with `AH00163: Apache/2.4.38 (Debian) PHP/7.4.16 configured -- resuming normal operations` when it is complete
+- If you get a browser error then try running `ping kube.local`. If there is no answer then use the pis hostname and update the `nextcloud-ingress.yaml` and `nextcloud-server.yaml` files.
+
+If it does not load up you can view the logs by visiting the k8s dashboard, 
 
 
 ## File redundancy
 
 See https://old.reddit.com/r/selfhosted/comments/n4pkwk/finally_added_prometheus_and_grafana_on_my_humble/gwxb3se/
 
-## Rancher Longhorn
-
-```sh
-helm install --create-namespace vault --atomic banzaicloud-stable/vault
-helm install --create-namespace vault --namespace vault --atomic banzaicloud-stable/vault-operator
-helm install --create-namespace vault-webhook --namespace vault --atomic banzaicloud-stable/vault-secrets-webhook
-```
 
 ## 32-bit vs 64bit
 
@@ -306,15 +142,6 @@ photoprism no longer builds 32-bit and 64-bit images under the same name. That m
 
 ```
 photoprism/photoprism:20211203  # This is the last version that works with 32bit and 64bit raspberry pi
-```
-
-Also, to switch your raspberry pi from 32bit to 64 ([source](https://www.sindastra.de/p/1345/switch-your-raspberry-pi-to-64-bit-kernel-raspbian)):
-
-```
-sudo nano /boot/config.txt
-
-# Add the following line ot the bottom without the `#`
-arm_64bit=1
 ```
 
 ## Debugging Nextcloud 500 errors
@@ -325,52 +152,4 @@ Run `php occ log:watch` as the `www-data` user. Open a shell to nextcloud-server
 su www-data -s /bin/bash
 cs /var/www/html/
 php occ log:watch    # <-- shows stack traces
-```
-
-## Backup script on the pi
-
-```sh
-#!/bin/bash
-set -x -e
-
-backup_root=${BACKUP_ROOT:-./backups}
-k3s_storage=/var/lib/rancher/k3s/storage
-
-nextcloud_pvc=$(sudo sh -c "ls $k3s_storage | grep _nextcloud_nextcloud-shared-storage-claim")
-photoprism_originals_pvc=$(sudo sh -c "ls $k3s_storage | grep _photoprism_photoprism-originals-shared-storage-claim")
-photoprism_pvc=$(sudo sh -c "ls $k3s_storage | grep _photoprism_photoprism-shared-storage-claim")
-
-nextcloud_root_dir="$k3s_storage/$nextcloud_pvc"
-photoprism_originals_dir="$k3s_storage/$photoprism_originals_pvc"
-photoprism_dir="$k3s_storage/$photoprism_pvc"
-
-today=$(date -u +%Y-%m-%d)
-
-function tar_with_progress {
-  # frequency=$1
-  # filename=$2
-  # remaining_args="${@:3}"
-  time sudo tar --create --verbose --file=$2 "${@:3}" | awk -v n=$1 'NR%n==1'
-  sudo chown $USER $2
-}
-
-[[ -d $backup_root ]] || {
-  echo "Error: Directory to place backups does not exist. Create it first or set BACKUP_ROOT environment variable"
-  exit 1
-}
-
-tar_with_progress 10 $backup_root/${today}_k3s.tar.gz --exclude='/var/lib/rancher/k3s/agent/containerd' /var/lib/rancher/k3s/agent /var/lib/rancher/k3s/server
-
-# Create a postgres dump
-sudo kubectl exec deployment/nextcloud-db --namespace nextcloud -- pg_dumpall --database=nextcloud --username=nextcloud --clean | xz > $backup_root/${today}_nextcloud-postgres.sql.xz
-
-tar_with_progress 2000 $backup_root/${today}_nextcloud-postgres-data-files.tar.gz $nextcloud_root_dir/postgres-data
-tar_with_progress 2000 $backup_root/${today}_nextcloud-server-code.tar.gz --exclude=$nextcloud_root_dir/server-data/data $nextcloud_root_dir/server-data
-tar_with_progress 2000 $backup_root/${today}_nextcloud-server-data.tar.gz $nextcloud_root_dir/server-data/data
-
-sudo rsync --acls --archive --one-file-system --progress "$nextcloud_root_dir" $backup_root/rsync-nextcloud-root/
-
-
-tar_with_progress   50 $backup_root/${today}_photoprism-originals.tar.gz $photoprism_originals_dir/
-tar_with_progress 2000 $backup_root/${today}_photoprism-data.tar.gz      $photoprism_dir/
 ```

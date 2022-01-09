@@ -1,0 +1,5 @@
+[pi4]
+arm_64bit=1
+gpu_mem=16
+
+[all]
