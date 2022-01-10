@@ -22,6 +22,8 @@ systemctl -q is-active log2ram || {
     popd
     rm -r ./log2ram-master
 
+    echo "SystemMaxUse=20M" | sudo tee -a /etc/systemd/journald.conf > /dev/null
+
     echo "Installing log2ram requires a reboot. Rebooting now..."
     sudo systemctl reboot
 }

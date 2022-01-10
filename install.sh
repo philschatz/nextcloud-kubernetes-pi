@@ -7,6 +7,7 @@ kube_username='pi'
 
 SD_BOOTFS=${SD_BOOTFS:-/media/$USER/boot}
 DOTENV_FILE=./install.env
+BACKUP_ROOT=${BACKUP_ROOT:-./backups}
 # SERVER_IP is computed later
 
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
@@ -28,7 +29,7 @@ warn() { echo -e "${c_yellow}$*${c_none}"; }
 yell() { >&2 echo -e "$0: $c_red$*$c_none"; }
 die() { yell "$1"; exit 112; }
 
-function prompt {
+prompt() {
     # message $1
     # default $2
     if [[ $2 ]]; then
@@ -38,13 +39,13 @@ function prompt {
     fi
     [[ $response ]] && echo $response || echo $2
 }
-function confirm {
+confirm() {
     # message $1
     read -p "$1 <y/N> " response
     echo $response
 }
 
-function step_configure_sd_card {
+step_configure_sd_card() {
     # Detecting if USB or SD card is mounted
     if [[ -f $SD_BOOTFS/cmdline.txt ]]; then
 
@@ -113,17 +114,17 @@ function step_configure_sd_card {
 }
 
 
-function step_install_os_dependencies {
+step_install_os_dependencies() {
     cat ./templates/install-os-deps.sh | ssh $kube_username@$kube_hostname
     echo "Finished installing os dependencies"
 }
 
-function step_install_disk_savers {
+step_install_disk_savers() {
     cat ./templates/install-disk-savers.sh | ssh $kube_username@$kube_hostname
     echo "Finished installing os dependencies"
 }
 
-function step_install_k3s {
+step_install_k3s() {
     # Install local helpers
     command -v arkade > /dev/null || {
         curl -sSL https://dl.get-arkade.dev | sudo sh
@@ -149,20 +150,20 @@ function step_install_k3s {
     }
 }
 
-function step_add_this_node {
+step_add_this_node() {
     echo "Note: Adding other nodes is not supported yet. Just tweak this next line and ensure you can ssh to the other machine without a password"
     sleep 10
     k3sup join --server-ip $SERVER_IP --server-user $kube_username --user $USER
 }
 
 
-function step_verify_k3s_is_up {
+step_verify_k3s_is_up() {
     export KUBECONFIG=$(pwd)/kubeconfig
     kubectl get nodes
     kubectl get pods --all-namespaces
 }
 
-function step_deploy_apps {
+step_deploy_apps() {
     # Create TLS certificate
     # [[ -f ./my-tls.crt ]] || {
     #     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -178,11 +179,11 @@ function step_deploy_apps {
     sleep 10
 }
 
-function step_delete_apps {
+step_delete_apps() {
     ./reset.sh
 }
 
-function step_start_proxy_tunnel {
+step_start_proxy_tunnel() {
     set +x
     export KUBECONFIG=$(pwd)/kubeconfig
 
@@ -242,6 +243,40 @@ step_mount_storage_drive() {
     done
 }
 
+step_perform_backup() {
+    today=$(date -u +%Y-%m-%d)
+    # Perform rsync, postgres database dump, and a full tarball snapshot
+    [[ ! -d $BACKUP_ROOT ]] && mkdir $BACKUP_ROOT
+    
+    [[ ! -d $BACKUP_ROOT ]] && {
+        echo 'Warning: It appears you are backing up for the first time. The first time takes a while.'
+        sleep 2
+    }
+    time rsync \
+        --archive \
+        --compress \
+        --progress \
+        --partial \
+        --rsync-path 'sudo rsync' \
+        --bwlimit=100 \
+        --ipv4 \
+        --exclude='backups' \
+        $kube_username@$kube_hostname:/var/lib/rancher/k3s/storage \
+        $BACKUP_ROOT/rsync-storage
+    
+    echo "Running postgres database dump"
+    [[ ! -d $BACKUP_ROOT/$today ]] && mkdir $BACKUP_ROOT/$today
+    cat ./templates/postgres-dump.sh | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/$today/nextcloud-postgres.sql.xz
+}
+
+step_perform_full_backup() {
+    today=$(date -u +%Y-%m-%d)
+    # Perform rsync, postgres database dump, and a full tarball snapshot
+    [[ ! -d $BACKUP_ROOT ]] && mkdir $BACKUP_ROOT
+
+    echo "sudo tar czf - /var/lib/rancher/k3s/storage/" | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/$today/storage.tar.gz
+}
+
 ander() {
     ret='yes'
     for var in "$@"; do
@@ -265,7 +300,7 @@ run_yes_no() {
     set -e
 }
 
-function update_status {
+update_status() {
     echo "Checking installation/server status... You may be prompted for a password if you did not set up private keys"
     set +e
 
@@ -280,12 +315,14 @@ function update_status {
     is_ssh_valid=''
     has_kubeconfig=''
     is_kubeconfig_valid=''
+    has_backup_ran=''
 
     echo -n "${c_yellow}Loading $c_blue[$c_none"
     is_mounted=$([[ -f $SD_BOOTFS ]] && echo 'yes')
+    has_backup_ran=$([[ -d $BACKUP_ROOT/rsync-storage ]] && echo 'yes')
     is_on_local=$(ping -c 1 -W 2 $kube_hostname_only.local &> /dev/null && echo 'yes')
     echo -n "$c_green.$c_none"
-    [[ $is_on_local ]] || is_on_noname=$(ping -c 1 -W 2 $kube_hostname_only &> /dev/null && echo 'yes')
+    [[ ! $is_on_local ]] && is_on_noname=$(ping -c 1 -W 2 $kube_hostname_only &> /dev/null && echo 'yes')
 
     [[ $is_on_local || $is_on_noname ]] && is_on='yes'
     [[ $is_on_noname ]] && kube_hostname=$kube_hostname_only
@@ -331,18 +368,18 @@ step_status() {
 
     update_status
 
-    yes_no "Is SD card mounted at '$SD_BOOTFS' (SD_BOOTFS)?" $is_mounted
-    yes_no "Is $kube_hostname on the network?" $is_on
-    [[ $is_on ]] && echo "Server IP Address (SERVER_IP): $c_green$SERVER_IP$c_none" || echo "Server IP Address: ${c_red}UNKNOWN$c_none"
-    yes_no "Is ssh running?" $is_ssh_on
-    yes_no "Can connect via ssh?" $is_ssh_valid
-    yes_no "Is log2ram active on the server?" $is_server_log2ram_active
-    yes_no "Is zram active on the server?" $is_server_zram_active
-    yes_no "Is k3s active on the server?" $is_server_k3s_active
-    yes_no "Has kubeconfig?" $has_kubeconfig
-    yes_no "Is kubeconfig valid?" $is_kubeconfig_valid
-    yes_no "Is https running? (might need to configure the router to allow the $kube_hostname hostname)" $is_https_on
-    yes_no "Is http running?" $is_http_on
+    yes_no "- Is SD card mounted at '$SD_BOOTFS' (SD_BOOTFS)?" $is_mounted
+    yes_no "- Is $kube_hostname on the network?" $is_on
+    [[ $is_on ]] && echo "- Server IP Address (SERVER_IP): $c_green$SERVER_IP$c_none" || echo "Server IP Address: ${c_red}UNKNOWN$c_none"
+    yes_no "- Is ssh running?" $is_ssh_on
+    yes_no "- Can connect via ssh?" $is_ssh_valid
+    yes_no "- Is log2ram active on the server?" $is_server_log2ram_active
+    yes_no "- Is zram active on the server?" $is_server_zram_active
+    yes_no "- Is k3s active on the server?" $is_server_k3s_active
+    yes_no "- Has kubeconfig?" $has_kubeconfig
+    yes_no "- Is kubeconfig valid?" $is_kubeconfig_valid
+    yes_no "- Is https running? (might need to configure the router to allow the $kube_hostname hostname)" $is_https_on
+    yes_no "- Is http running?" $is_http_on
 }
 
 
@@ -351,10 +388,10 @@ mkicon() {
     # $2: has this step already succeeded?
     if [[ $2 ]]; then
         echo "$c_green[ok]$c_none"
+    elif [[ $# == 0 ]]; then
+        echo "[--]" # These are always available
     elif [[ ! $1 ]]; then
         echo "$c_red[XX]$c_none"
-    elif [[ $# == 1 ]]; then
-        echo "[--]" # These are always available
     else
         echo "$c_yellow[  ]$c_none"
     fi
@@ -375,12 +412,12 @@ gui() {
             "$(mkicon "$is_ssh_valid" "$is_k3s_storage_root_mounted") Mount storage drive (so SD card lasts longer)"
             "$(mkicon "$is_kubeconfig_valid" "$is_https_on") Deploy apps to k3s"
             "$(mkicon "$is_kubeconfig_valid") Start proxy tunnel for Cluster dashboard"
-            "$(mkicon "$is_https_on") Perform backup"
-            "$(mkicon "$is_ssh_valid") Restore from backup"
+            "$(mkicon "$is_https_on" "$has_backup_ran") Perform backup"
+            "$(mkicon $(ander "$is_ssh_valid" "$has_backup_ran")) Restore from backup (ToDo)"
             "$(mkicon "$is_https_on") Delete all the apps"
             "$(mkicon "$is_kubeconfig_valid") Add a new computer to the cluster"
             "$(mkicon "$is_kubeconfig_valid") Show running services"
-            "$(mkicon 'yes') Quit (or press Ctrl+C)"
+            "$(mkicon) Quit (or press Ctrl+C)"
         )
         PS3="Choose an action (1-${#install_steps[@]}): "
         select _ in "${install_steps[@]}"; do

@@ -121,6 +121,31 @@ Your phone can connect to `https://kube` from another location if you have one o
 
 # Troubleshooting
 
+## Cannot find kube
+
+There are 4 causes for not finding the kube:
+
+1. the pi is not powered on. Check for a light
+1. the Operating System is not properly flashed onto the SD card. Plug it into a computer and run the install script.
+1. The WiFi information is incorrect. Re-run the script or use an ethernet cable to plug the pi directly into the router
+
+Some modern routers do not support local DNS so you may need to associate the name `kube` with the IP address your router gives the machine. Here's how it's done with some common routers:
+
+- [ASUS](https://www.snbforums.com/threads/confused-about-host-names-and-names-you-assign-on-the-router.63930/#post-580373)
+
+https://www.scivision.dev/raspberry-pi-wifi-avahi/
+
+Use this command to [find all the machines on the network](https://www.raspberrypi.com/documentation/computers/remote-access.html) (might need to run a couple of times because of timeouts) `nmap -sn 192.168.1.0/24 | grep kube`
+
+This is not super useful but shows all the zeroconf computers on your network:
+
+
+```
+avahi-browse --all --terminate --resolve
+```
+
+## Error messages
+
 - `error: yaml: line 30: mapping values are not allowed in this context` : Set KUBECONFIG= to the absolute path to the `kubeconfig` files (generated during the `k3sup install ...` step)
 - If you see "Service Unavailable" then kubernetes may still be downloading images. Check the dashboard to see the status
 - If you see "Bad Gateway" nextcloud may still be starting up (it took 3 minutes for me).
