@@ -39,7 +39,7 @@ spec:
           value: password
         
         - name: NEXTCLOUD_TRUSTED_DOMAINS
-          value: "kube kube.local kube.lan"
+          value: "kube kube.local kube.lan cloud cloud.local cloud.lan"
         
         # Force https. Otherwise we keep redirecting to http
         - name: OVERWRITEPROTOCOL

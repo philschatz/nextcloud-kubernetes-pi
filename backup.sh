@@ -19,7 +19,7 @@ function tar_with_progress {
   # filename=$2
   # remaining_args="${@:3}"
   
-  time sudo tar --create --verbose --file=$2 "${@:3}" | awk -v n=$1 'NR%n==1'
+  time sudo tar --gzip --create --verbose --file=$2 "${@:3}" | awk -v n=$1 'NR%n==1'
   sudo chown $USER $2
 }
 

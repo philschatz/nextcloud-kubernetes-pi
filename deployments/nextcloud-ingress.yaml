@@ -17,7 +17,7 @@ spec:
   routes:
   - kind: Rule
     # TODO: Could try using HostRegexp but would need to update the NEXTCLOUD_TRUSTED_DOMAINS. https://doc.traefik.io/traefik/routing/routers/
-    match: Host(`kube`, `kube.local`, `kube.lan`) && PathPrefix(`/nextcloud`)
+    match: Host(`kube`, `kube.local`, `kube.lan`, `cloud`, `cloud.local`, `cloud.lan`) && PathPrefix(`/nextcloud`)
     middlewares:
     - name: kube-nextcloud
       namespace: nextcloud

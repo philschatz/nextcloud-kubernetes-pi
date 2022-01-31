@@ -1,1 +1,1 @@
-sudo kubectl exec deployment/nextcloud-db --namespace nextcloud -- pg_dumpall --database=nextcloud --username=nextcloud --clean | xz
+sudo kubectl exec deployment/nextcloud-db --namespace nextcloud -- pg_dumpall --database=nextcloud --username=nextcloud --clean

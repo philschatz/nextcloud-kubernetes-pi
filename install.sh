@@ -244,6 +244,8 @@ step_mount_storage_drive() {
 }
 
 step_perform_backup() {
+    export KUBECONFIG=`pwd`/kubeconfig
+
     today=$(date -u +%Y-%m-%d)
     # Perform rsync, postgres database dump, and a full tarball snapshot
     [[ ! -d $BACKUP_ROOT ]] && mkdir $BACKUP_ROOT
@@ -265,8 +267,8 @@ step_perform_backup() {
         $BACKUP_ROOT/rsync-storage
     
     echo "Running postgres database dump"
-    [[ ! -d $BACKUP_ROOT/$today ]] && mkdir $BACKUP_ROOT/$today
-    cat ./templates/postgres-dump.sh | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/$today/nextcloud-postgres.sql.xz
+    [[ ! -d $BACKUP_ROOT/backup_$today ]] && mkdir $BACKUP_ROOT/backup_$today
+    kubectl exec deployment/nextcloud-db --namespace nextcloud -- pg_dumpall --database=nextcloud --username=nextcloud --clean > $BACKUP_ROOT/backup_$today/nextcloud-postgres.sql
 }
 
 step_perform_full_backup() {
@@ -274,7 +276,30 @@ step_perform_full_backup() {
     # Perform rsync, postgres database dump, and a full tarball snapshot
     [[ ! -d $BACKUP_ROOT ]] && mkdir $BACKUP_ROOT
 
-    echo "sudo tar czf - /var/lib/rancher/k3s/storage/" | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/$today/storage.tar.gz
+    echo "sudo tar czf - /var/lib/rancher/k3s/storage/" | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/backup_$today/storage.tar.gz
+}
+
+step_restore_postgres_from_backup() {
+    export KUBECONFIG=$(pwd)/kubeconfig
+
+    if [[ $1 ]]; then
+        backup_file=$1
+    else
+        backup_dir=$(find ./backups -name 'backup_*' | sort -r | head -n 1)
+        backup_file=$backup_dir/nextcloud-postgres.sql
+        [[ ! $backup_file || ! -f $backup_file ]] && {
+            echo "Error: Could not find a backup file at '$backup_file'"
+            exit 1
+        }
+        echo "$c_yellowWARNING: Using the newest backup file '$backup_file'. To specify a different file, run this install script with the following arguments: 'restore-postgres' path/to/postgres-backup.sql. Waiting 5sec.$c_none"
+        sleep 5
+    fi
+
+    # kubectl delete --wait=true -f ./deployments/nextcloud-server.yaml || echo "The service is already off."
+    # kubectl delete --wait=true -f ./deployments/nextcloud-db.yaml || echo "The service is already off."
+    kubectl apply -f ./deployments/nextcloud-db.yaml
+    cat $backup_file | kubectl exec deployment/nextcloud-db --stdin=true --namespace nextcloud -- psql --set ON_ERROR_STOP=on --dbname=postgres --username=nextcloud --echo-all
+    kubectl apply -f ./deployments/nextcloud-server.yaml
 }
 
 ander() {
@@ -399,7 +424,6 @@ mkicon() {
 
 gui() {
     while :; do
-        step_status
         echo ""
         echo ""
 
@@ -430,7 +454,7 @@ gui() {
                 6) step_deploy_apps; break;;
                 7) step_start_proxy_tunnel; break;;
                 8) step_perform_backup; break;;
-                9) step_restore_from_backup; break;; # psql --set ON_ERROR_STOP=on --single-transaction --dbname=postgres --username=nextcloud --file /var/lib/postgresql/data/nextcloud-full-backup.sql --echo-all
+                9) step_restore_postgres_from_backup; break;;
                 10) step_delete_apps; break;;
                 11) step_add_this_node; break;;
                 12) step_verify_k3s_is_up; break;;
@@ -441,9 +465,13 @@ gui() {
                 *) echo "invalid option $REPLY. step=$step"; break;;
             esac
         done
+
+        step_status
     done
 }
 
+
+update_status
 case $1 in
     prepare) step_configure_sd_card;;
     sd) step_configure_sd_card;;
@@ -454,7 +482,7 @@ case $1 in
     deploy) step_deploy_apps;;
     proxy) step_start_proxy_tunnel;;
     backup) step_perform_backup;;
-    restore) step_restore_from_backup;;
+    restore-postgres) step_restore_postgres_from_backup $2;;
     delete) step_delete_apps;;
     status) step_status;;
     *) gui;;
