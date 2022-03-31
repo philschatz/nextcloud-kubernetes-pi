@@ -243,7 +243,7 @@ step_mount_storage_drive() {
     done
 }
 
-step_perform_backup() {
+step_perform_rsync_backup() {
     export KUBECONFIG=`pwd`/kubeconfig
 
     today=$(date -u +%Y-%m-%d)
@@ -271,12 +271,13 @@ step_perform_backup() {
     kubectl exec deployment/nextcloud-db --namespace nextcloud -- pg_dumpall --database=nextcloud --username=nextcloud --clean > $BACKUP_ROOT/backup_$today/nextcloud-postgres.sql
 }
 
-step_perform_full_backup() {
+step_perform_tarball_backup() {
     today=$(date -u +%Y-%m-%d)
     # Perform rsync, postgres database dump, and a full tarball snapshot
-    [[ ! -d $BACKUP_ROOT ]] && mkdir $BACKUP_ROOT
+    [[ ! -d $BACKUP_ROOT/backup_$today ]] && mkdir -p $BACKUP_ROOT/backup_$today
 
-    echo "sudo tar czf - /var/lib/rancher/k3s/storage/" | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/backup_$today/storage.tar.gz
+    echo 'sudo tar czf - /var/lib/rancher/k3s/server/ || [[ $? -eq 1 ]]' | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/backup_$today/k3s_server.tar.gz
+    echo 'sudo tar czf - /var/lib/rancher/k3s/storage/ || [[ $? -eq 1 ]]' | ssh $kube_username@$kube_hostname > $BACKUP_ROOT/backup_$today/k3s_storage.tar.gz
 }
 
 step_restore_postgres_from_backup() {
@@ -340,11 +341,11 @@ update_status() {
     is_ssh_valid=''
     has_kubeconfig=''
     is_kubeconfig_valid=''
-    has_backup_ran=''
+    has_rsync_backup_ran=''
 
     echo -n "${c_yellow}Loading $c_blue[$c_none"
     is_mounted=$([[ -f $SD_BOOTFS ]] && echo 'yes')
-    has_backup_ran=$([[ -d $BACKUP_ROOT/rsync-storage ]] && echo 'yes')
+    has_rsync_backup_ran=$([[ -d $BACKUP_ROOT/rsync-storage ]] && echo 'yes')
     is_on_local=$(ping -c 1 -W 2 $kube_hostname_only.local &> /dev/null && echo 'yes')
     echo -n "$c_green.$c_none"
     [[ ! $is_on_local ]] && is_on_noname=$(ping -c 1 -W 2 $kube_hostname_only &> /dev/null && echo 'yes')
@@ -423,7 +424,7 @@ mkicon() {
 }
 
 gui() {
-    while :; do
+    # while :; do
         echo ""
         echo ""
 
@@ -436,8 +437,9 @@ gui() {
             "$(mkicon "$is_ssh_valid" "$is_k3s_storage_root_mounted") Mount storage drive (so SD card lasts longer)"
             "$(mkicon "$is_kubeconfig_valid" "$is_https_on") Deploy apps to k3s"
             "$(mkicon "$is_kubeconfig_valid") Start proxy tunnel for Cluster dashboard"
-            "$(mkicon "$is_https_on" "$has_backup_ran") Perform backup"
-            "$(mkicon $(ander "$is_ssh_valid" "$has_backup_ran")) Restore from backup (ToDo)"
+            "$(mkicon "$is_https_on" "$has_rsync_backup_ran") Perform rsync backup"
+            "$(mkicon "$is_https_on" "$has_rsync_backup_ran") Perform tarball backup of data and server"
+            "$(mkicon $(ander "$is_ssh_valid" "$has_rsync_backup_ran")) Restore from backup (ToDo)"
             "$(mkicon "$is_https_on") Delete all the apps"
             "$(mkicon "$is_kubeconfig_valid") Add a new computer to the cluster"
             "$(mkicon "$is_kubeconfig_valid") Show running services"
@@ -453,11 +455,12 @@ gui() {
                 5) step_mount_storage_drive; break;;
                 6) step_deploy_apps; break;;
                 7) step_start_proxy_tunnel; break;;
-                8) step_perform_backup; break;;
-                9) step_restore_postgres_from_backup; break;;
-                10) step_delete_apps; break;;
-                11) step_add_this_node; break;;
-                12) step_verify_k3s_is_up; break;;
+                8) step_perform_rsync_backup; break;;
+                9) step_perform_tarball_backup; break;;
+                10) step_restore_postgres_from_backup; break;;
+                11) step_delete_apps; break;;
+                12) step_add_this_node; break;;
+                13) step_verify_k3s_is_up; break;;
                 14)
                     echo "Exiting"
                     exit 0
@@ -467,7 +470,7 @@ gui() {
         done
 
         step_status
-    done
+    # done
 }
 
 
@@ -481,7 +484,8 @@ case $1 in
     mount) step_mount_storage_drive;;
     deploy) step_deploy_apps;;
     proxy) step_start_proxy_tunnel;;
-    backup) step_perform_backup;;
+    backup-rsync) step_perform_rsync_backup;;
+    backup-tarball) step_perform_tarball_backup;;
     restore-postgres) step_restore_postgres_from_backup $2;;
     delete) step_delete_apps;;
     status) step_status;;
