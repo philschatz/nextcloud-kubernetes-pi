@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: photoprism-container
-        image: photoprism/photoprism:20211203 # Last one that works on amd, arm64, and arm/v7 (this is what my kube runs)
+        image: photoprism/photoprism:20211203 # Last one that works on amd, arm64, and arm/v7 (this is what my cloud runs)
         env:
         # - name: PHOTOPRISM_DEBUG
         #   value: "true"
@@ -45,7 +45,7 @@ spec:
         - name: PHOTOPRISM_FACE_SCORE
           value: '5' # 0-10 apparently. 9.0 is default. https://github.com/photoprism/photoprism/commit/65b779823df45666f46ce3a46bda664d9c91a5ff
         - name: PHOTOPRISM_SITE_URL
-          value: https://kube/photoprism
+          value: https://cloud/photoprism
         - name: PHOTOPRISM_ADMIN_PASSWORD
           value: password
         - name: PHOTOPRISM_WORKERS
@@ -131,10 +131,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - kube
+    - cloud
     # secretName: photoprism-cert
   rules:
-  - host: kube
+  - host: cloud
     http:
       paths:
       - path: /photoprism

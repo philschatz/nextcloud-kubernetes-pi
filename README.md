@@ -48,7 +48,7 @@ In general the steps are:
 1. Perform backup
 1. Uninstall apps
 
-Once the apps are deployed, visit https://kube (or https://kube.local or https://kube.lan). Sign in with username `admin` and password `password` unless you changed it earlier.
+Once the apps are deployed, visit https://cloud (or https://cloud.local or https://cloud.lan). Sign in with username `admin` and password `password` unless you changed it earlier.
 
 
 ## Backups
@@ -68,8 +68,8 @@ To optionally back up the SD card perform the following:
 1. turn off the pi
 1. remove the SD card and insert it into a laptop
 1. use the "Disk Utility" to resize the main partition down to around 4Gb. If you skip this then the image will be however large your SD card is
-1. run `sudo dd status=progress if=/dev/sdX | gzip > kube-backup.img.gz` where sdX is your SD card. Sometimes it is `/dev/mmcblk0`
-1. run `sudo dd status=progress if=/dev/sdX bs=1M count=5120 | gzip > kube-backup.img.gz` to limit the image size to 5GB (assuming you shrunk it in the Disk Utility) https://stackoverflow.com/a/26909977
+1. run `sudo dd status=progress if=/dev/sdX | gzip > cloud-backup.img.gz` where sdX is your SD card. Sometimes it is `/dev/mmcblk0`
+1. run `sudo dd status=progress if=/dev/sdX bs=1M count=5120 | gzip > cloud-backup.img.gz` to limit the image size to 5GB (assuming you shrunk it in the Disk Utility) https://stackoverflow.com/a/26909977
 1. resize the partition back to the full size using the "Disk Utility"
 
 
@@ -111,31 +111,31 @@ sudo reboot # important for the nfs service to start up
 
 ### Connect from another location
 	
-Your phone can connect to `https://kube` from another location if you have one other machine:
+Your phone can connect to `https://cloud` from another location if you have one other machine:
 
 1. Enable ssh access to your home network. This usually involves setting up your router to talk to a DDNS provider and then enabling port forwarding on your router to a bastion machine inside your network.
-1. Forward the port to a local machine: `sudo ssh -i ~/.ssh/id_rsa -L 0.0.0.0:kube:443 username@myhomeaddress.com` The 0.0.0.0 ensures other devices can see the local port and the `sudo` allows you to listen to ports below 1024
-1. Set the hostname of your laptop to be `kube`
+1. Forward the port to a local machine: `sudo ssh -i ~/.ssh/id_rsa -L 0.0.0.0:cloud:443 username@myhomeaddress.com` The 0.0.0.0 ensures other devices can see the local port and the `sudo` allows you to listen to ports below 1024
+1. Set the hostname of your laptop to be `cloud`
 
 
 
 # Troubleshooting
 
-## Cannot find kube
+## Cannot find cloud
 
-There are 4 causes for not finding the kube:
+There are 4 causes for not finding the cloud:
 
 1. the pi is not powered on. Check for a light
 1. the Operating System is not properly flashed onto the SD card. Plug it into a computer and run the install script.
 1. The WiFi information is incorrect. Re-run the script or use an ethernet cable to plug the pi directly into the router
 
-Some modern routers do not support local DNS so you may need to associate the name `kube` with the IP address your router gives the machine. Here's how it's done with some common routers:
+Some modern routers do not support local DNS so you may need to associate the name `cloud` with the IP address your router gives the machine. Here's how it's done with some common routers:
 
 - [ASUS](https://www.snbforums.com/threads/confused-about-host-names-and-names-you-assign-on-the-router.63930/#post-580373)
 
 https://www.scivision.dev/raspberry-pi-wifi-avahi/
 
-Use this command to [find all the machines on the network](https://www.raspberrypi.com/documentation/computers/remote-access.html) (might need to run a couple of times because of timeouts) `nmap -sn 192.168.1.0/24 | grep kube`
+Use this command to [find all the machines on the network](https://www.raspberrypi.com/documentation/computers/remote-access.html) (might need to run a couple of times because of timeouts) `nmap -sn 192.168.1.0/24 | grep cloud`
 
 This is not super useful but shows all the zeroconf computers on your network:
 
@@ -151,7 +151,7 @@ avahi-browse --all --terminate --resolve
 - If you see "Bad Gateway" nextcloud may still be starting up (it took 3 minutes for me).
     - See the logs in the dashboard by clicking the `nextcloud-server-a1b2c3` **Pod** (not Deployment) and then clicking the Logs button
     - The logs will end with `AH00163: Apache/2.4.38 (Debian) PHP/7.4.16 configured -- resuming normal operations` when it is complete
-- If you get a browser error then try running `ping kube.local`. If there is no answer then use the pis hostname and update the `nextcloud-ingress.yaml` and `nextcloud-server.yaml` files.
+- If you get a browser error then try running `ping cloud.local`. If there is no answer then use the pis hostname and update the `nextcloud-ingress.yaml` and `nextcloud-server.yaml` files.
 
 If it does not load up you can view the logs by visiting the k8s dashboard, 
 

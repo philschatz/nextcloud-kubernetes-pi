@@ -2,7 +2,7 @@
 
 set -e
 
-kube_hostname_only='kube'
+kube_hostname_only='cloud'
 kube_username='pi'
 
 SD_BOOTFS=${SD_BOOTFS:-/media/$USER/boot}
@@ -443,6 +443,7 @@ gui() {
             "$(mkicon "$is_https_on") Delete all the apps"
             "$(mkicon "$is_kubeconfig_valid") Add a new computer to the cluster"
             "$(mkicon "$is_kubeconfig_valid") Show running services"
+            "$(mkicon) Show status"
             "$(mkicon) Quit (or press Ctrl+C)"
         )
         PS3="Choose an action (1-${#install_steps[@]}): "
@@ -461,7 +462,8 @@ gui() {
                 11) step_delete_apps; break;;
                 12) step_add_this_node; break;;
                 13) step_verify_k3s_is_up; break;;
-                14)
+                14) step_status; break;;
+                15)
                     echo "Exiting"
                     exit 0
                     ;;
@@ -469,7 +471,7 @@ gui() {
             esac
         done
 
-        step_status
+        # step_status
     # done
 }
 
