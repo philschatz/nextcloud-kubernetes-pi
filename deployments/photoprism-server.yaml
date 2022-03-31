@@ -45,7 +45,7 @@ spec:
         - name: PHOTOPRISM_FACE_SCORE
           value: '5' # 0-10 apparently. 9.0 is default. https://github.com/photoprism/photoprism/commit/65b779823df45666f46ce3a46bda664d9c91a5ff
         - name: PHOTOPRISM_SITE_URL
-          value: https://kube/photos
+          value: https://kube/photoprism
         - name: PHOTOPRISM_ADMIN_PASSWORD
           value: password
         - name: PHOTOPRISM_WORKERS
@@ -137,7 +137,7 @@ spec:
   - host: kube
     http:
       paths:
-      - path: /photos
+      - path: /photoprism
         pathType: Prefix
         backend:
           service:
