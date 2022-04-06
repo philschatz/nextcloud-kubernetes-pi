@@ -21,7 +21,7 @@ function apply {
     echo "Starting: $1"
     kubectl apply -f $1
     sleep 1
-    wait_for_pods
+    # wait_for_pods
     echo "Started: $1"
     echo ""
 }
