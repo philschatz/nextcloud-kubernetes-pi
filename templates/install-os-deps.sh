@@ -6,8 +6,9 @@ sudo apt-get install --no-install-recommends -y \
     git \
     pmount \
     downtimed \
+    unattended-upgrades \
 ;
 
 # Remove unnecessary apt and temp files
 sudo apt-get autoremove -y
-sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
