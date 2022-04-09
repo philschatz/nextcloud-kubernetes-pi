@@ -164,13 +164,6 @@ step_verify_k3s_is_up() {
 }
 
 step_deploy_apps() {
-    # Create TLS certificate
-    # [[ -f ./my-tls.crt ]] || {
-    #     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    #         -out ./deployments/my-tls.crt \
-    #         -keyout ./deployments/my-tls.key \
-    #         -subj "/CN=$kube_hostname/O=Personal Cloud"
-    # }
     ./start.sh
 
     echo "Deployment started. It may take a couple of minutes for the dashboard app to start. (waiting 10sec)"

@@ -17,6 +17,16 @@ spec:
       name: nextcloud-server
       namespace: nextcloud
       port: 80
+  # https://traefik.io/blog/https-on-kubernetes-using-traefik-proxy/
+  # https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#kind-ingressroute
+  tls: 
+    secretName: my-tls-secret
+    domains:
+      - main: cloud
+        sans:
+          - "cloud.local"
+          - "cloud.lan"
+
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
