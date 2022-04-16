@@ -41,6 +41,7 @@ function run_step_if_file_missing() {
     shift
     command_and_args="$@"
     if [[ $DO_REST == 1 || ! -f $filename ]]; then
+        DO_REST=1
         echo "Running command: $command_and_args"
         "$@"
     else
@@ -75,3 +76,9 @@ apply ./deployments/nextcloud-ingress.yaml
 apply ./deployments/homepage-ingress.yaml
 apply ./deployments/photoprism-shared-pvc.yaml
 apply ./deployments/photoprism-server.yaml
+
+
+if [[ $DO_REST == 1 ]]; then
+    echo "Reminder: if you changed the keys then upload the tls-root-ca.crt and maybe tls-mine.crt files into android"
+    sleep 10
+fi

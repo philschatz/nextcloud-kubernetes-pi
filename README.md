@@ -80,6 +80,7 @@ Install the following Nextcloud Apps by clicking your login on the top-right and
 - [Calendar](https://apps.nextcloud.com/apps/calendar)
 - [Notes](https://apps.nextcloud.com/apps/notes)
 - [Tasks](https://apps.nextcloud.com/apps/tasks)
+- [Passman](https://apps.nextcloud.com/apps/passman)
 
 Then, on your Android phone, install the following:
 
@@ -89,6 +90,16 @@ Then, on your Android phone, install the following:
 - [Tasks](https://f-droid.org/packages/org.tasks/)
 - [Notes](https://f-droid.org/en/packages/it.niedermann.owncloud.notes/)
 - Set your [seedvault backup](https://calyxinstitute.org/projects/seedvault-encrypted-backup-for-android) to use nextcloud too!
+- [Passman](https://f-droid.org/en/packages/es.wolfi.app.passman/). Instructions because passman needs a root CA and some type of domain (e.g. `.lan`):
+    - Ensure `cloud.lan` resolves by your router
+    - Copy the tls-root-ca.crt to your Android phone's "Download" directory
+    - On android, visit Settings -> Security -> Encryption & Credentials -> Install a certificate -> CA certificate
+    - select the tls-root-ca.crt file
+    - In Passman, use the URL `cloud.lan/nextcloud`
+    - To debug:
+        - To verify the root CA works, try visiting https://cloud.lan in Chromium. You should not need to accept a certificate
+        - use `adb logcat` to view client logs and `tail -f ./data/nextcloud.log` by clicking `Exec` on a `nextcloud-server` instance in the Kuberneted Dashboard (run the `proxy` command in the CLI to start it up)
+        - To use a different TLD other than `.lan`, search-and-replace `.lan` in this repo
 
 
 ## Even more!
