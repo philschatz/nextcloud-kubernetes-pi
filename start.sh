@@ -28,11 +28,17 @@ function apply {
 
 # Create TLS certificate
 [[ -f ./my-tls.crt ]] || {
-   openssl req -nodes -new -x509 \
-        -keyout ./my-tls.key \
-        -out ./my-tls.crt \
-        -config ./my-tls.conf \
-        -days 3650
+#    openssl req -nodes -new -x509 \
+#         -keyout ./my-tls.key \
+#         -out ./my-tls.crt \
+#         -config ./my-tls.conf \
+#         -days 3650
+
+    openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 -subj "/C=US/ST=Oklahoma/L=Stillwater/O=My Company/OU=Engineering/CN=test.com" -keyout temp-ca.key -out temp-ca.crt
+    openssl genrsa -out "my-tls.key" 2048
+    openssl req -new -key my-tls.key -out temp-test.csr -config ./my-tls.conf
+    openssl x509 -req -days 3650 -in temp-test.csr -CA temp-ca.crt -CAkey temp-ca.key -CAcreateserial -extensions v3_req -extfile ./my-tls.conf -out my-tls.crt
+
 }
 
 # Generate file from template
