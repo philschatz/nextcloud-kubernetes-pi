@@ -27,25 +27,37 @@ function apply {
 }
 
 # Create TLS certificate
-[[ -f ./my-tls.crt ]] || {
+# [[ -f ./tls-mine.crt ]] || {
 #    openssl req -nodes -new -x509 \
-#         -keyout ./my-tls.key \
-#         -out ./my-tls.crt \
-#         -config ./my-tls.conf \
+#         -keyout ./tls-mine.key \
+#         -out ./tls-mine.crt \
+#         -config ./tls.conf \
 #         -days 3650
+# }
 
-    openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 -subj "/C=US/ST=Oklahoma/L=Stillwater/O=My Company/OU=Engineering/CN=test.com" -keyout temp-ca.key -out temp-ca.crt
-    openssl genrsa -out "my-tls.key" 2048
-    openssl req -new -key my-tls.key -out temp-test.csr -config ./my-tls.conf
-    openssl x509 -req -days 3650 -in temp-test.csr -CA temp-ca.crt -CAkey temp-ca.key -CAcreateserial -extensions v3_req -extfile ./my-tls.conf -out my-tls.crt
-
+DO_REST=0
+function run_step_if_file_missing() {
+    filename=$1
+    shift
+    command_and_args="$@"
+    if [[ $DO_REST == 1 || ! -f $filename ]]; then
+        echo "Running command: $command_and_args"
+        "$@"
+    else
+        echo "Skipping step because file exists: $filename"
+    fi
 }
+# Source: https://stackoverflow.com/a/58580467
+# Installing the cert using the older method was not possible because the certificate needed a root CA as well
+run_step_if_file_missing tls-root-ca.key    openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 -subj "/O=Personal Cloud Root Authority/CN=cloud" -keyout tls-root-ca.key -out tls-root-ca.crt
+run_step_if_file_missing tls-mine.key       openssl genrsa -out "tls-mine.key" 2048
+run_step_if_file_missing tls-temp.csr       openssl req -new -key tls-mine.key -out tls-temp.csr -config ./tls.conf
+run_step_if_file_missing tls-mine.crt       openssl x509 -req -days 3650 -in tls-temp.csr -CA tls-root-ca.crt -CAkey tls-root-ca.key -CAcreateserial -extensions v3_req -extfile ./tls.conf -out tls-mine.crt
+
 
 # Generate file from template
-# TLS_CRT=$(sed -e "s;-----BEGIN CERTIFICATE-----;;g" -e "s;-----END CERTIFICATE-----;;g" ./my-tls.crt | tr -d '\n')
-# TLS_KEY=$(sed -e "s-----BEGIN PRIVATE KEY-----;;g" -e "s;-----END PRIVATE KEY-----;;g" ./my-tls.crt | tr -d '\n')
-TLS_CRT=$(base64 --wrap=0 ./my-tls.crt) # Kubernetes files are base64 encoded
-TLS_KEY=$(base64 --wrap=0 ./my-tls.key)
+TLS_CRT=$(base64 --wrap=0 ./tls-mine.crt) # Kubernetes files are base64 encoded
+TLS_KEY=$(base64 --wrap=0 ./tls-mine.key)
 sed \
     -e "s;%%TLS_CRT%%;$TLS_CRT;g" \
     -e "s;%%TLS_KEY%%;$TLS_KEY;g" \

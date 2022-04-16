@@ -1,6 +1,9 @@
 /kubeconfig*
-/my-tls.crt
-/my-tls.key
+/tls-mine.crt
+/tls-mine.key
+/tls-root-ca.crt
+/tls-root-ca.key
+/tls-test.csr
 /install.env
 /backups/
 
@@ -12,3 +15,6 @@
 /gitpod/values.custom.yaml
 
 /_*.gitpod.lan/
+tls-root-ca.srl
+.gitignore
+tls-temp.csr
